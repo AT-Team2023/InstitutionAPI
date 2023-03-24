@@ -1,0 +1,50 @@
+import 'dart:convert';
+
+import 'package:shelf/shelf.dart';
+import 'package:shelf_router/shelf_router.dart';
+import 'package:supabase/supabase.dart';
+
+import '../../../../Services/supabase/Institution/registrationInstitution.dart';
+import 'Create_Account_Institution.dart';
+
+class UpdatePasswordInstitution {
+  Handler get router {
+    final router = Router();
+    final pipeline = Pipeline()
+        .addMiddleware((innerHandler) => (Request req) {
+              return innerHandler(req);
+            })
+        .addHandler(response);
+
+    return pipeline;
+  }
+}
+
+Future<Response> response(Request req) async {
+  RegistrationInstitution institutionSupbase = RegistrationInstitution();
+  try {
+    // Read the request body.
+    var requestBody = await req.readAsString();
+    // convert the request body to Map.
+
+    // Validate and sanitize the user input.
+    validateRequestBodyEmpty(requestBody: requestBody);
+    validateFoundKeyInJson(requestBody: requestBody, keyName: "token");
+    validateFoundKeyInJson(requestBody: requestBody, keyName: "newPassword");
+    final requestBodyJson = jsonDecode(requestBody);
+    // validateID(id: requestBodyJson["token"]);
+    validatePassword(password: requestBodyJson["newPassword"]);
+
+    Map<String, dynamic> user = await institutionSupbase.updatePassword(
+        token: requestBodyJson["token"],
+        password: requestBodyJson["newPassword"]);
+    // ---------------
+
+    return Response.ok(jsonEncode(user),
+        headers: {'content-type': 'application/json'});
+  } on FormatException catch (error) {
+    return Response(404,
+        body: jsonEncode({"message": error.message}),
+        headers: {'content-type': 'application/json'});
+  }
+}
