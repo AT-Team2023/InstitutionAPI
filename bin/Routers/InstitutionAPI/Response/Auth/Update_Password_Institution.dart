@@ -2,10 +2,10 @@ import 'dart:convert';
 
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
-import 'package:supabase/supabase.dart';
 
-import '../../../../Services/supabase/Institution/registrationInstitution.dart';
-import 'Create_Account_Institution.dart';
+import '../../../../Root/Method/responseCustom.dart';
+import '../../../../Services/supabase/Institution/SupabaseInstitutionAuth.dart';
+import '../../../../ValidateClass/ValidationClass.dart';
 
 class UpdatePasswordInstitution {
   Handler get router {
@@ -20,31 +20,34 @@ class UpdatePasswordInstitution {
   }
 }
 
+//---------------------Response----------------------------
+
 Future<Response> response(Request req) async {
-  RegistrationInstitution institutionSupbase = RegistrationInstitution();
+  SupabaseInstitutionAuth institutionSuapbase = SupabaseInstitutionAuth();
   try {
+    ValidationClass validation = ValidationClass();
+
     // Read the request body.
     var requestBody = await req.readAsString();
     // convert the request body to Map.
 
     // Validate and sanitize the user input.
-    validateRequestBodyEmpty(requestBody: requestBody);
-    validateFoundKeyInJson(requestBody: requestBody, keyName: "token");
-    validateFoundKeyInJson(requestBody: requestBody, keyName: "newPassword");
+    validation.validateRequestBodyEmpty(requestBody: requestBody);
+    validation.validateFoundKeyInJson(
+        requestBody: requestBody, keyName: "token");
+    validation.validateFoundKeyInJson(
+        requestBody: requestBody, keyName: "newPassword");
     final requestBodyJson = jsonDecode(requestBody);
-    // validateID(id: requestBodyJson["token"]);
-    validatePassword(password: requestBodyJson["newPassword"]);
+    validation.validatePassword(password: requestBodyJson["newPassword"]);
 
-    Map<String, dynamic> user = await institutionSupbase.updatePassword(
+    Map<String, dynamic> response = await institutionSuapbase.updatePassword(
         token: requestBodyJson["token"],
         password: requestBodyJson["newPassword"]);
     // ---------------
 
-    return Response.ok(jsonEncode(user),
-        headers: {'content-type': 'application/json'});
+    return ResponseCustom.successResponse(responseMap: response);
   } on FormatException catch (error) {
-    return Response(404,
-        body: jsonEncode({"message": error.message}),
-        headers: {'content-type': 'application/json'});
+    return ResponseCustom.forbiddenResponse(
+        responseMap: {"message": error.message});
   }
 }

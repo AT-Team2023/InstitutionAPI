@@ -11,3 +11,4 @@ Future<Request> redirectWithTrailingSlash({required Request request}) async {
   );
   return modifiedRequest;
 }
+

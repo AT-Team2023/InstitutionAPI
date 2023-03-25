@@ -26,6 +26,7 @@ dependencies:
   supabase: ^1.6.1
   shelf_enforces_ssl: ^1.1.0
   jwt_decoder: ^2.0.1
+  supabase_extensions: ^0.5.1
 
 
 dev_dependencies:

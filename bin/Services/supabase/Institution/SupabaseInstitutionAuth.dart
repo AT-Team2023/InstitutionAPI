@@ -3,23 +3,27 @@ import 'package:supabase/supabase.dart';
 import '../../../Const_data/SupabaseConst.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 
-class RegistrationInstitution {
-  SupabaseClient? _connect;
-  RegistrationInstitution() {
-    _connect = SupabaseClient(SupabaseConst.url, SupabaseConst.secretKey);
-  }
+import 'SupabaseInstitutionDatabase.dart';
+
+class SupabaseInstitutionAuth {
+  SupabaseClient _connect =
+      SupabaseClient(SupabaseConst.url, SupabaseConst.secretKey);
+  // SupabaseInstitution() {
+  //   _connect = SupabaseClient(SupabaseConst.url, SupabaseConst.secretKey);
+  // }
+
   Future<Map<String, dynamic>> createAccount(
       {required String email, required String password}) async {
     try {
       String timeNow =
           DateTime.now().millisecondsSinceEpoch.toString().substring(0, 10);
 
-      UserResponse institutionAccount = await _connect!.auth.admin.createUser(
+      UserResponse? institutionAccount = await _connect.auth.admin.createUser(
           AdminUserAttributes(email: email, password: password, data: {
         "email": email,
         "password": password,
       }));
-      await _connect!.auth
+      await _connect.auth
           .signInWithOtp(email: email)
           .then((value) => print("sssssss"));
       return {
@@ -39,8 +43,10 @@ class RegistrationInstitution {
       required String code,
       required OtpType type}) async {
     try {
-      AuthResponse user =
-          await _connect!.auth.verifyOTP(token: code, type: type, email: email);
+      SupabaseInstitutionDataBase test = SupabaseInstitutionDataBase();
+      await test.createTable();
+      AuthResponse? user =
+          await _connect.auth.verifyOTP(token: code, type: type, email: email);
 
       return {
         "codeStatus": 200,
@@ -61,7 +67,7 @@ class RegistrationInstitution {
     required String password,
   }) async {
     try {
-      AuthResponse user = await _connect!.auth
+      AuthResponse user = await _connect.auth
           .signInWithPassword(email: email, password: password);
 
       return {
@@ -83,9 +89,10 @@ class RegistrationInstitution {
     required String email,
   }) async {
     try {
-      await _connect!.auth.resetPasswordForEmail(
-        email,
-      );
+      // GenerateLinkResponse rest = await _connect.auth.admin
+      //     .generateLink(type: GenerateLinkType.magiclink, email: email);
+
+      await _connect.auth.resetPasswordForEmail(email);
 
       return {
         "codeStatus": 200,
@@ -125,7 +132,7 @@ class RegistrationInstitution {
       }
       Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
       print(decodedToken);
-      UserResponse user = await _connect!.auth.admin.updateUserById(
+      UserResponse user = await _connect.auth.admin.updateUserById(
           decodedToken['sub'],
           attributes: AdminUserAttributes(password: password));
       return {

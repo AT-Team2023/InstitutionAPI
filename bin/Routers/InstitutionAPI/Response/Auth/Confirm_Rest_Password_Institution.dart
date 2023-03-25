@@ -2,10 +2,10 @@ import 'dart:convert';
 
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
-import 'package:supabase/supabase.dart';
 
-import '../../../../Services/supabase/Institution/registrationInstitution.dart';
-import 'Create_Account_Institution.dart';
+import '../../../../Root/Method/responseCustom.dart';
+import '../../../../Services/supabase/Institution/SupabaseInstitutionAuth.dart';
+import '../../../../ValidateClass/ValidationClass.dart';
 
 class ConfirmPasswordInstitution {
   Handler get router {
@@ -20,31 +20,36 @@ class ConfirmPasswordInstitution {
   }
 }
 
+//---------------------Response----------------------------
+
 Future<Response> response(Request req) async {
-  RegistrationInstitution institutionSupbase = RegistrationInstitution();
+  SupabaseInstitutionAuth institutionSuapbase = SupabaseInstitutionAuth();
   try {
+    ValidationClass validation = ValidationClass();
+
     // Read the request body.
     var requestBody = await req.readAsString();
     // convert the request body to Map.
 
     // Validate and sanitize the user input.
-    validateRequestBodyEmpty(requestBody: requestBody);
-    validateFoundKeyInJson(requestBody: requestBody, keyName: "email");
-    validateFoundKeyInJson(requestBody: requestBody, keyName: "code");
+    validation.validateRequestBodyEmpty(requestBody: requestBody);
+    validation.validateFoundKeyInJson(
+        requestBody: requestBody, keyName: "email");
+    validation.validateFoundKeyInJson(
+        requestBody: requestBody, keyName: "code");
 
     final requestBodyJson = jsonDecode(requestBody);
-    validateEmail(email: requestBodyJson["email"]);
-    validateCode(code: requestBodyJson["code"]);
+    validation.validateEmail(email: requestBodyJson["email"]);
+    validation.validateCode(code: requestBodyJson["code"]);
 
-    Map<String, dynamic> user = await institutionSupbase.confirmRestPassword(
-        email: requestBodyJson["email"], code: requestBodyJson["code"]);
+    Map<String, dynamic> response =
+        await institutionSuapbase.confirmRestPassword(
+            email: requestBodyJson["email"], code: requestBodyJson["code"]);
     // ---------------
 
-    return Response.ok(jsonEncode(user),
-        headers: {'content-type': 'application/json'});
+    return ResponseCustom.successResponse(responseMap: response);
   } on FormatException catch (error) {
-    return Response(404,
-        body: jsonEncode({"message": error.message}),
-        headers: {'content-type': 'application/json'});
+    return ResponseCustom.forbiddenResponse(
+        responseMap: {"message": error.message});
   }
 }
