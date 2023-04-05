@@ -1,8 +1,15 @@
 // ignore: depend_on_referenced_packages
 import 'package:shelf_hotreload/shelf_hotreload.dart';
-
-import 'Root/Root.dart';
-
+import 'dart:io';
+import 'package:content_length_validator/content_length_validator.dart';
+import 'package:shelf/shelf.dart';
+import 'package:shelf/shelf_io.dart';
+import 'package:shelf_helmet/shelf_helmet.dart';
+import 'package:shelf_rate_limiter/shelf_rate_limiter.dart';
+import 'env/Environment.dart';
+import 'CustomResponses/responseCustom.dart';
+import 'Root/Middleware/middlewareRoot.dart';
+import 'Routers/01-BaseApiRoute.dart';
 
 void main(List<String> args) async {
   withHotreload(
@@ -15,9 +22,33 @@ void main(List<String> args) async {
   );
 }
 
+Future<HttpServer> createServer() async {
+  final memoryStorage = MemStorage();
+  final rateLimiter = ShelfRateLimiter(
+      storage: memoryStorage, duration: Duration(seconds: 60), maxRequests: 10);
+  const maxContentLength = 5 * 1024 * 1024;
 
+  final handler = Pipeline()
+      // .addMiddleware(enforceSSL())
 
+      .addMiddleware(helmet())
+      .addMiddleware(rateLimiter.rateLimiter())
+      .addMiddleware(
+        maxContentLengthValidator(
+            maxContentLength: maxContentLength,
+            errorResponse: ResponseCustom.forbiddenResponse(
+                responseMap: {'message': 'Your body is too long'})),
+      )
+      .addMiddleware(middlewareRoot())
+      .addMiddleware(logRequests())
+      .addHandler(BaseApiRoute().router);
 
+  // For running in containers, we respect the PORT environment variable.
+
+  final server = await serve(handler, Environment.ip, Environment.port);
+  print('Server listening on http://${server.address.host}:${server.port}');
+  return server;
+}
 
 // 200 OK: The request has succeeded and the response contains the requested information.
 // 201 Created: The request has been fulfilled and a new resource has been created.

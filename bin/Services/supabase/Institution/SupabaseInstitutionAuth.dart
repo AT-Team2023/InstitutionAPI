@@ -1,148 +1,165 @@
+import 'package:http/http.dart';
 import 'package:supabase/supabase.dart';
+import 'package:test/test.dart';
 
-import '../../../Const_data/SupabaseConst.dart';
+import '../../../env/SupabaseConst.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 
 import 'SupabaseInstitutionDatabase.dart';
 
 class SupabaseInstitutionAuth {
-  SupabaseClient _connect =
+  static SupabaseClient connect =
       SupabaseClient(SupabaseConst.url, SupabaseConst.secretKey);
-  // SupabaseInstitution() {
-  //   _connect = SupabaseClient(SupabaseConst.url, SupabaseConst.secretKey);
-  // }
 
-  Future<Map<String, dynamic>> createAccount(
+
+  //----------------------- create new Account --------------------
+
+  static createAccount(
       {required String email, required String password}) async {
     try {
-      String timeNow =
-          DateTime.now().millisecondsSinceEpoch.toString().substring(0, 10);
-
-      UserResponse? institutionAccount = await _connect.auth.admin.createUser(
+      UserResponse institutionAccount = await connect.auth.admin.createUser(
           AdminUserAttributes(email: email, password: password, data: {
         "email": email,
-        "password": password,
       }));
-      await _connect.auth
-          .signInWithOtp(email: email)
-          .then((value) => print("sssssss"));
-      return {
-        "codeStatus": 200,
-        "createdAt": institutionAccount.user?.createdAt,
+
+      Map<String, dynamic> user = {
+        "id_auth": institutionAccount.user?.id,
         "email": institutionAccount.user?.email,
       };
+
+      await SupabaseInstitutionDataBase.addInstitution(institutionJson: user);
+
+      return {
+        "email": institutionAccount.user?.email,
+        "id": institutionAccount.user?.id,
+      };
+    } on ClientException catch (error) {
+      throw FormatException("Failed check your internet or contact with admin");
     } on AuthException catch (error) {
-      throw FormatException(error.message);
+      customAuthException(exception: error);
     }
   }
 
   //----------------------- Confirm --------------------
 
-  Future<Map<String, dynamic>> confirmAccount(
+  static confirmAccount(
       {required String email,
       required String code,
       required OtpType type}) async {
     try {
-      SupabaseInstitutionDataBase test = SupabaseInstitutionDataBase();
-      await test.createTable();
       AuthResponse? user =
-          await _connect.auth.verifyOTP(token: code, type: type, email: email);
+          await connect.auth.verifyOTP(token: code, type: type, email: email);
 
       return {
-        "codeStatus": 200,
-        "message": "The email has been confirmed successfully",
         "accessToken": user.session?.accessToken,
         "expiresAt": user.session?.expiresAt,
         "refreshToken": user.session?.refreshToken,
         "id": user.session?.user.id,
+        "email": user.session?.user.email,
       };
+    } on ClientException catch (error) {
+      throw FormatException("Failed check your internet or contact with admin");
     } on AuthException catch (error) {
-      throw FormatException(error.message);
+      customAuthException(exception: error);
     }
   }
   //----------------------- login --------------------
 
-  Future<Map<String, dynamic>> login({
+  static login({
     required String email,
     required String password,
   }) async {
+    SupabaseClient connect1;
     try {
-      AuthResponse user = await _connect.auth
+      AuthResponse user = await connect.auth
           .signInWithPassword(email: email, password: password);
 
       return {
-        "codeStatus": 200,
         "message": "Login is successfully",
         "accessToken": user.session?.accessToken,
         "refreshToken": user.session?.refreshToken,
         "id": user.session?.user.id,
         "expiresAt": user.session?.expiresAt
       };
+    } on ClientException catch (error) {
+      throw FormatException("Failed check your internet or contact with admin");
     } on AuthException catch (error) {
-      throw FormatException(error.message);
+      customAuthException(exception: error);
     }
   }
 
   //----------------------- login --------------------
 
-  Future<Map<String, dynamic>> restPassword({
+  static restPassword({
     required String email,
   }) async {
     try {
-      // GenerateLinkResponse rest = await _connect.auth.admin
+      // GenerateLinkResponse rest = await connect.auth.admin
       //     .generateLink(type: GenerateLinkType.magiclink, email: email);
 
-      await _connect.auth.resetPasswordForEmail(email);
-
-      return {
-        "codeStatus": 200,
-        "message": "Reset Password is successfully",
-      };
+      await connect.auth.resetPasswordForEmail(email);
+    } on ClientException catch (error) {
+      throw FormatException("Failed check your internet or contact with admin");
     } on AuthException catch (error) {
-      throw FormatException(error.message);
+      customAuthException(exception: error);
     }
   }
 
   //----------------------- login --------------------
 
-  Future<Map<String, dynamic>> confirmRestPassword({
-    required String email,
-    required String code,
-  }) async {
-    try {
-      Map<String, dynamic> user = await confirmAccount(
-          email: email, type: OtpType.recovery, code: code);
-
-      return user;
-    } on AuthException catch (error) {
-      throw FormatException(error.message);
-    }
-  }
-
   //----------------------- login --------------------
 
-  Future<Map<String, dynamic>> updatePassword({
+  static updatePassword({
     required String token,
     required String password,
   }) async {
     try {
       bool hasExpired = JwtDecoder.isExpired(token);
+      Map<String, dynamic> userData = JwtDecoder.decode(token);
       if (hasExpired) {
-        throw FormatException("Token is expired");
+        throw FormatException("Token is invalid or already expired");
       }
-      Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
-      print(decodedToken);
-      UserResponse user = await _connect.auth.admin.updateUserById(
-          decodedToken['sub'],
-          attributes: AdminUserAttributes(password: password));
+      UserResponse user = await connect.auth.admin.updateUserById(
+          userData["sub"],
+          attributes: AdminUserAttributes(
+              email: userData["email"], password: password));
+      var tokenJWT = token.substring(7, token.length);
+      print(tokenJWT);
+
       return {
-        "codeStatus": 200,
-        "message": "Update Password is successfully",
         "id": user.user?.id,
         "email": user.user?.email,
       };
+    } on ClientException catch (error) {
+      throw FormatException("Failed check your internet or contact with admin");
     } on AuthException catch (error) {
-      throw FormatException(error.message);
+      customAuthException(exception: error);
     }
+  }
+
+  static getCodeConfirmSignUp({
+    required String email,
+  }) async {
+    try {
+      await connect.auth.signInWithOtp(email: email);
+
+      return "Code send to your email";
+    } on ClientException catch (error) {
+      throw FormatException("Failed check your internet or contact with admin");
+    } on AuthException catch (error) {
+      customAuthException(exception: error);
+    }
+  }
+}
+
+customAuthException({required AuthException exception}) {
+  switch (exception.message) {
+    case "Invalid login credentials":
+      throw FormatException('The email or password is incorrect');
+    case "Invalid payload":
+      throw FormatException('Sorry, the token is incorrect');
+
+    default:
+      throw FormatException(exception.message);
   }
 }

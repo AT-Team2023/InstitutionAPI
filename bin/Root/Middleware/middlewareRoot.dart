@@ -4,7 +4,8 @@ import '../Method/redirectWithTrailingSlash.dart';
 
 Middleware middlewareRoot() => (innerHandler) => (Request request) async {
       if (!request.requestedUri.path.endsWith('/')) {
-        return innerHandler(await redirectWithTrailingSlash(request: request));
+        return await innerHandler(
+            await redirectWithTrailingSlash(request: request));
       }
       return innerHandler(request);
     };
